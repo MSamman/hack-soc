@@ -1,0 +1,11 @@
+@5
+D=A
+@LED
+M=D
+@15
+D=A
+@SEG
+M=D
+(END)
+@END
+0;JMP

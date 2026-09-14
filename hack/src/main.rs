@@ -2,7 +2,7 @@ use io::Write;
 use std::fs::{self, OpenOptions};
 use std::{io, path::PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum, error::ErrorKind};
 use hack::assembler::assemble;
 use hack::board::Board;
@@ -102,8 +102,9 @@ fn main() -> Result<()> {
             let board = input.select_board()?;
             let asm_code = input.read_asm()?;
             println!("Assembling {} for {board:?}", input.asm_path.display());
-
-            let bitcodes = assemble(&asm_code, &board)?;
+            
+            let input_filename = input.asm_path.to_str().unwrap();
+            let bitcodes = assemble(&asm_code, &board).with_context(|| { format!("Failed to assemble {input_filename}")} )?;
 
             match out {
                 OutKind::File => {
@@ -149,8 +150,8 @@ fn main() -> Result<()> {
             let asm_code = input.read_asm()?;
             println!("Loading {} for {board:?}", input.asm_path.display());
 
-            let bitcodes = assemble(&asm_code, &board)?;
-            programmer::process_command(
+            let input_filename = input.asm_path.to_str().unwrap();
+            let bitcodes = assemble(&asm_code, &board).with_context(|| { format!("Failed to assemble {input_filename}")} )?;            programmer::process_command(
                 port,
                 programmer::SerialCommand::Load {
                     words: bitcodes.words(),

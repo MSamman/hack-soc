@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same branch or PR supersedes the run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  hack:
+    name: hack (Rust)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hack
+    steps:
+      - uses: actions/checkout@v7
+
+      # libudev for the serialport crate
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libudev-dev pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview # for cargo-llvm-cov
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest,cargo-llvm-cov
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: hack
+
+      # One instrumented nextest run both gates on the tests and records coverage.
+      - name: Test with coverage
+        run: cargo llvm-cov nextest --locked --no-fail-fast --no-report
+      - name: Coverage report
+        run: |
+          cargo llvm-cov report --html --output-dir "$RUNNER_TEMP/coverage"
+          cargo llvm-cov report --lcov --output-path "$RUNNER_TEMP/coverage/lcov.info"
+          {
+            echo '### hack coverage'
+            echo '```'
+            cargo llvm-cov report --summary-only
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hack-coverage
+          path: ${{ runner.temp }}/coverage
+
+      - run: cargo build --release --locked
+
+      # Handed to the bitstream job, so it also checks that the assembler's
+      # output is something ROM.sv's $readmemb and yosys accept.
+      - name: Assemble Go Board program
+        run: >-
+          target/release/hack assemble
+          -b ../hdl/boards/go-board/board.toml ../hdl/boards/go-board/test.asm
+          -o file --file "$RUNNER_TEMP/program.hack"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: go-board-program
+          path: ${{ runner.temp }}/program.hack
+          if-no-files-found: error
+
+  hdl:
+    name: HDL tests and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+
+      # .#hdl is the flake's HDL-only shell: same tool versions as `nix develop`.
+      - run: nix develop .#hdl --command make test
+      - run: nix develop .#hdl --command make lint
+
+  bitstream:
+    name: Go Board bitstream
+    needs: hack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - uses: actions/download-artifact@v8
+        with:
+          name: go-board-program
+          path: ${{ runner.temp }}/program
+
+      # nextpnr fails the build if the CPU clock misses FREQ from board.mk.
+      - name: Synthesize, place and route, pack
+        run: >-
+          nix develop .#hdl --command
+          make -C hdl bitstream BOARD=go-board PROGRAM="$RUNNER_TEMP/program/program.hack"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: go-board-bitstream
+          path: hdl/build/go-board.bin
+          if-no-files-found: error

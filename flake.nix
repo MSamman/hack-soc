@@ -12,23 +12,32 @@
         pkgs = import nixpkgs {
           inherit system;
         };
+
+        # Shared by both shells, so CI (`nix develop .#hdl`) runs the same
+        # simulator, linter and iCE40 flow versions as the default shell.
+        hdlTools = with pkgs; [
+          # ICE40 FPGA toolchain
+          yosys              # Synthesis tool
+          nextpnr            # Place and route for ICE40 (includes ICE40 support)
+          icestorm           # Bitstream generation tools (icepack, iceprog, etc.)
+
+          # SystemVerilog/Verilog tools
+          iverilog           # Icarus Verilog simulator
+          verilator          # Verilog/SystemVerilog simulator and linter
+        ];
       in
       {
+        # Lean shell for CI: the HDL tools only, without GTKWave or Rust.
+        devShells.hdl = pkgs.mkShell {
+          packages = hdlTools;
+        };
+
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
             pkg-config         # so the serialport crate can locate libudev
           ];
 
-          buildInputs = with pkgs; [
-            # ICE40 FPGA toolchain
-            yosys              # Synthesis tool
-            nextpnr            # Place and route for ICE40 (includes ICE40 support)
-            icestorm           # Bitstream generation tools (icepack, iceprog, etc.)
-
-            # SystemVerilog/Verilog tools
-            iverilog           # Icarus Verilog simulator
-            verilator          # Verilog/SystemVerilog simulator and linter
-
+          buildInputs = hdlTools ++ (with pkgs; [
             # Rust toolchain for hack (assembler + UART programmer)
             rustc
             cargo
@@ -49,7 +58,7 @@
             # Utilities
             which
             git
-          ];
+          ]);
 
           # Lets rust-analyzer resolve std sources
           RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";

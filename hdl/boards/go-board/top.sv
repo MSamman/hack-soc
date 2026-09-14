@@ -28,7 +28,7 @@ module top(
     .instruction(instruction)
   );
 
-  // TODO tie Reset to actual input (button?). For now hold reset for 16 cycles then release
+  // TODO tie Reset to actual input (button?). For now hold reset for 8 cycles then release
   logic [3:0] por = 4'd0;
   wire  reset = ~por[3];
   always_ff @(posedge clkCpu) if (~por[3]) por <= por + 1'b1;
