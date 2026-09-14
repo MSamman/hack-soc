@@ -44,7 +44,9 @@ impl SerialCommand<'_> {
         Ok(())
     }
 
-    pub fn write_to<W: Write>(&self, writer: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&self, writer: &mut W) -> Result<Option<u16>> {
+        let mut crc = None;
+
         writer.write_all(&[self.op_code() as u8])?;
         match *self {
             Self::Ping {} | Self::Hold {} | Self::Run {} => {}
@@ -53,26 +55,28 @@ impl SerialCommand<'_> {
                     bail!("Can't write more than u16::MAX words")
                 }
 
-                let crc = crc::Crc::<u16>::new(&CRC_16_IBM_3740);
-                let mut digest = crc.digest();
-                SerialCommand::write_u16(writer, words.len() as u16)?;
+                let alg: crc::Crc<u16> = crc::Crc::<u16>::new(&CRC_16_IBM_3740);
+                let mut digest = alg.digest();
+                Self::write_u16(writer, words.len() as u16)?;
                 for &w in words {
-                    SerialCommand::write_u16(writer, w)?;
+                    Self::write_u16(writer, w)?;
                     digest.update(&w.to_be_bytes());
                 }
-                SerialCommand::write_u16(writer, digest.finalize())?;
+                let c = digest.finalize();
+                Self::write_u16(writer,c)?;
+                crc = Some(c);
             }
             Self::Get { address, len } => {
-                SerialCommand::write_u16(writer, address)?;
-                SerialCommand::write_u16(writer, len)?;
+                Self::write_u16(writer, address)?;
+                Self::write_u16(writer, len)?;
             }
             Self::Step { len } => {
-                SerialCommand::write_u16(writer, len)?;
+                Self::write_u16(writer, len)?;
             }
         }
 
         writer.flush()?;
-        Ok(())
+        Ok(crc)
     }
 }
 
@@ -170,7 +174,10 @@ pub fn process_command(port_name: &str, command: SerialCommand) -> Result<Serial
         .open()
         .expect(format!("Unable to open port {port_name}").as_str());
 
-    command.write_to(&mut port)?;
+    /*
+        Todo: Check CRCs when applicable
+    */
+    let _command_crc = command.write_to(&mut port)?;
 
     SerialResponse::read_from(&mut port, command.op_code())
 }

@@ -3,9 +3,9 @@ rom-words = 0xC00    # 12 EBRs
 ram-words = 0x400    # 4 EBRS
 
 [symbols]
-LED     = 0x400 
-SEG     = 0x401
-BTN     = 0x402
-UART_TX = 0x403
-UART_RX = 0x404
-UART_ST = 0x405
+LED     = 0x4000 
+SEG     = 0x4001
+BTN     = 0x4002
+UART_TX = 0x4003
+UART_RX = 0x4004
+UART_ST = 0x4005

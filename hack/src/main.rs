@@ -66,7 +66,7 @@ enum Commands {
         format: Format,
 
         #[arg(long, value_name = "PATH")]
-        file_name: Option<PathBuf>,
+        file: Option<PathBuf>,
     },
     Load {
         #[command(flatten)]
@@ -96,7 +96,7 @@ fn main() -> Result<()> {
             input,
             out,
             format,
-            file_name,
+            file,
             ..
         } => {
             let board = input.select_board()?;
@@ -107,12 +107,17 @@ fn main() -> Result<()> {
 
             match out {
                 OutKind::File => {
-                    let default_name = input.asm_path.with_extension("bin");
-                    let out_path = file_name.as_deref().unwrap_or(default_name.as_path());
+                    let default_name =  input.asm_path.with_extension(
+                        match format {
+                        Format::Hack => "hack",
+                        Format::Bin => "bin",
+                        }
+                    );
+                    let out_path = file.as_deref().unwrap_or(default_name.as_path());
                     println!("Writing to {out_path:?}...");
 
                     let mut out_file =
-                        OpenOptions::new().write(true).create(true).open(out_path)?;
+                        OpenOptions::new().write(true).create(true).truncate(true).open(out_path)?;
 
                     match format {
                         Format::Hack => {
@@ -122,18 +127,17 @@ fn main() -> Result<()> {
                             bitcodes.write_bin(&mut out_file)?;
                         }
                     }
-                    write!(out_file, "{bitcodes}")?;
                 }
                 OutKind::Stdout => {
-                    if file_name.is_some() {
+                    if file.is_some() {
                         Cli::command()
                             .error(
                                 ErrorKind::ArgumentConflict,
-                                "--filename cannot be used with --out std",
+                                "--file cannot be used with --out stdout",
                             )
                             .exit();
                     }
-                    println!("{bitcodes}");
+                    print!("{bitcodes}");
                 }
             }
         }
