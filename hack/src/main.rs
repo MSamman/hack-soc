@@ -102,23 +102,25 @@ fn main() -> Result<()> {
             let board = input.select_board()?;
             let asm_code = input.read_asm()?;
             println!("Assembling {} for {board:?}", input.asm_path.display());
-            
+
             let input_filename = input.asm_path.to_str().unwrap();
-            let bitcodes = assemble(&asm_code, &board).with_context(|| { format!("Failed to assemble {input_filename}")} )?;
+            let bitcodes = assemble(&asm_code, &board)
+                .with_context(|| format!("Failed to assemble {input_filename}"))?;
 
             match out {
                 OutKind::File => {
-                    let default_name =  input.asm_path.with_extension(
-                        match format {
+                    let default_name = input.asm_path.with_extension(match format {
                         Format::Hack => "hack",
                         Format::Bin => "bin",
-                        }
-                    );
+                    });
                     let out_path = file.as_deref().unwrap_or(default_name.as_path());
                     println!("Writing to {out_path:?}...");
 
-                    let mut out_file =
-                        OpenOptions::new().write(true).create(true).truncate(true).open(out_path)?;
+                    let mut out_file = OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .truncate(true)
+                        .open(out_path)?;
 
                     match format {
                         Format::Hack => {
@@ -151,7 +153,9 @@ fn main() -> Result<()> {
             println!("Loading {} for {board:?}", input.asm_path.display());
 
             let input_filename = input.asm_path.to_str().unwrap();
-            let bitcodes = assemble(&asm_code, &board).with_context(|| { format!("Failed to assemble {input_filename}")} )?;            programmer::process_command(
+            let bitcodes = assemble(&asm_code, &board)
+                .with_context(|| format!("Failed to assemble {input_filename}"))?;
+            programmer::process_command(
                 port,
                 programmer::SerialCommand::Load {
                     words: bitcodes.words(),

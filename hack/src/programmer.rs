@@ -63,7 +63,7 @@ impl SerialCommand<'_> {
                     digest.update(&w.to_be_bytes());
                 }
                 let c = digest.finalize();
-                Self::write_u16(writer,c)?;
+                Self::write_u16(writer, c)?;
                 crc = Some(c);
             }
             Self::Get { address, len } => {
@@ -112,10 +112,9 @@ fn read_u16<R: Read>(reader: &mut R, buf: &mut [u8; 2]) -> Result<u16> {
 }
 
 impl SerialResponse {
-
     pub fn read_from<R: Read>(reader: &mut R, op_code: OpCode) -> Result<Self> {
         let mut byte_buf = [0u8; 1];
-        
+
         reader.read_exact(&mut byte_buf)?;
         let status = Status::try_from(byte_buf[0])?;
         if status == Status::Nack {
@@ -125,33 +124,27 @@ impl SerialResponse {
         let mut word_bytes_buf = [0u8; 2];
         Ok(match op_code {
             OpCode::Ping | OpCode::Hold | OpCode::Run => Self::Empty {},
-            OpCode::Load => {
-                Self::Load {
-                    crc: read_u16(reader, &mut word_bytes_buf).expect("Error reading crc."),
-                }
-            }
+            OpCode::Load => Self::Load {
+                crc: read_u16(reader, &mut word_bytes_buf).expect("Error reading crc."),
+            },
             OpCode::Get => {
                 let len = read_u16(reader, &mut word_bytes_buf).expect("Error reading len.");
 
                 let mut words = Vec::<u16>::with_capacity(len as usize);
                 for _ in 0..len {
-                    words.push(
-                        read_u16(reader, &mut word_bytes_buf).expect("Error reading word.")
-                    );
+                    words.push(read_u16(reader, &mut word_bytes_buf).expect("Error reading word."));
                 }
 
                 let crc = read_u16(reader, &mut word_bytes_buf).expect("Error reading crc.");
 
                 Self::Get { len, words, crc }
             }
-            OpCode::Step => {
-                Self::Step { 
-                    pc: read_u16(reader, &mut word_bytes_buf).expect("Error reading PC."),
-                    a: read_u16(reader, &mut word_bytes_buf).expect("Error reading A."),
-                    d: read_u16(reader, &mut word_bytes_buf).expect("Error reading D."),
-                    crc: read_u16(reader, &mut word_bytes_buf).expect("Error reading crc."),
-                }
-            }
+            OpCode::Step => Self::Step {
+                pc: read_u16(reader, &mut word_bytes_buf).expect("Error reading PC."),
+                a: read_u16(reader, &mut word_bytes_buf).expect("Error reading A."),
+                d: read_u16(reader, &mut word_bytes_buf).expect("Error reading D."),
+                crc: read_u16(reader, &mut word_bytes_buf).expect("Error reading crc."),
+            },
         })
     }
 }
@@ -214,7 +207,9 @@ mod tests {
                 SerialCommand::Load {
                     words: &[1 as u16, 2, 3],
                 },
-                vec![b'L', 0_u8, 3_u8, 0_u8, 1_u8, 0_u8, 2_u8, 0_u8, 3_u8, 250_u8, 66_u8],
+                vec![
+                    b'L', 0_u8, 3_u8, 0_u8, 1_u8, 0_u8, 2_u8, 0_u8, 3_u8, 250_u8, 66_u8,
+                ],
             ),
             (
                 SerialCommand::Get {
@@ -246,7 +241,9 @@ mod tests {
             (vec![0xAA as u8], OpCode::Hold, SerialResponse::Empty),
             (vec![0xAA as u8], OpCode::Run, SerialResponse::Empty),
             (
-                vec![0xAA, 0_u8, 3_u8, 0_u8, 1_u8, 0_u8, 2_u8, 0_u8, 3_u8, 250_u8, 66_u8],
+                vec![
+                    0xAA, 0_u8, 3_u8, 0_u8, 1_u8, 0_u8, 2_u8, 0_u8, 3_u8, 250_u8, 66_u8,
+                ],
                 OpCode::Get,
                 SerialResponse::Get {
                     len: 3,
