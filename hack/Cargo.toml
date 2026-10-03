@@ -12,8 +12,8 @@ serialport = "4.9.0"
 toml = "1.1.4"
 
 [dev-dependencies]
-libtest-mimic = "0.8.2"
+datatest-stable = "0.3"
 
 [[test]]
-name = "assemble"
+name = "assemble_test"
 harness = false
