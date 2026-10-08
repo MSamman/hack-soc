@@ -42,14 +42,14 @@ pub(super) fn parse(asm_code: &str) -> Result<Vec<Instruction<'_>>> {
         match inst.as_bytes() {
             [] => {}
             [b'(', .., b')'] => {
-                instructions.push(parse_l_inst(inst).with_context(|| format!("line {line_no}"))?);
+                instructions.push(parse_l_inst(inst).with_context(|| format!("error parsing {inst} on line {line_no} "))?);
             }
             [b'@', ..] => {
-                instructions.push(parse_a_inst(inst).with_context(|| format!("line {line_no}"))?);
+                instructions.push(parse_a_inst(inst).with_context(|| format!("error parsing {inst} on line {line_no}"))?);
                 address += 1;
             }
             _ => {
-                instructions.push(parse_c_inst(inst).with_context(|| format!("line {line_no}"))?);
+                instructions.push(parse_c_inst(inst).with_context(|| format!("error parsing {inst} on line {line_no}"))?);
                 address += 1;
             }
         }

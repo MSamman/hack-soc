@@ -46,6 +46,7 @@
             rust-analyzer
             cargo-nextest     # nicer test runner: cargo nextest run
             cargo-llvm-cov    # coverage: cargo llvm-cov nextest
+            perf              # profiler: perf record -g / perf report
 
             # Native dependency of the serialport crate (UART programmer)
             udev
@@ -73,7 +74,7 @@
             echo "Hack Computer Development Environment"
             echo "===================================="
             echo "HDL:     iverilog, verilator, yosys, nextpnr, icepack, iceprog, gtkwave"
-            echo "hack:    cargo, rustc, clippy, rustfmt, rust-analyzer, cargo-nextest, cargo-llvm-cov"
+            echo "hack:    cargo, rustc, clippy, rustfmt, rust-analyzer, cargo-nextest, cargo-llvm-cov, perf"
             echo ""
             echo "  make test              # run all HDL testbenches"
             echo "  make TEST=CPU_tb       # run a single testbench"
